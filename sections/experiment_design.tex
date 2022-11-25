@@ -1,12 +1,13 @@
 \section{Experiement Design}
 
-In order to estimate the covariance
-structure, we need evaluations \(\rf(x_1),\dots,\rf(x_n)\) of our random
+To estimate the covariance structure, we need evaluations
+\(\rf(x_1),\dots,\rf(x_n)\) of our random
 field \(\rf\). But where should we sample our Random Field? I.e. what should
 \(x_1,\dots, x_n\) be? A grid or otherwise regular lattice as is common in
 geostatistical experiment design \parencite[e.g.][Section 4.1]{mullerCollectingSpatialData2007} does not work, because even for a trivial
 grid with only two options in every direction results in \(n=2^\dimension\) points.
-Way too many points for high dimensions \(d\).
+This is way too much for high dimensions \(d\) and offers little variety in
+the distance of points \(x_i\).
 
 \subsection{Random Evaluation Points}
 
@@ -67,7 +68,7 @@ useful distribution for \(\sigma_i^2\)? If we have
 	\mu_n = \frac1n\sum_{k=1}^n \delta_{\sigma_i^2}
 \]
 for dirac measures \(\delta_x\), approximate \(\mu\) for \(n\to\infty\). Picking
-a random pair \((\sigma_i,\sigma_j)\) is equivalent from sampling from the
+a random pair \((\sigma_i^2,\sigma_j^2)\) is equivalent from sampling from the
 product measure \(\mu_n \times \mu_n\) which approximates \(\mu\times\mu\).
 The distribution of distances
 \[
