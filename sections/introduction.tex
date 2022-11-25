@@ -1,1 +1,82 @@
 \section{Introduction}
+
+For some random field \(Y\) assume that labels \(Y=Y(X)\) can be generated
+from locations \(X\). To fit a supervised machine learning model to this data
+\((X,Y)\), one would parametrize a model \(f_\theta\) and measure the distance
+between \(f_\theta(X)\) and \(Y\) using a loss function,
+e.g.
+\[
+	l(\theta, X,Y) = \|f_\theta(X)-Y\|^2.
+\]
+Then we would want to find a minimum of the random field
+\[
+	\rf(\theta) := \E[l(\theta, X,Y(X))\mid Y].
+\]
+In \fxnote{self-cite} random field informed gradient methods are discussed. For
+these methods to work, they need information about the covariance structure of
+\(\rf\). In this work we want to estimate this covariance structure.
+
+More generally, for a random field \(Z:\real^\dimension \to \real\) with high
+input dimension \(\dimension\), the covariance function is defined as
+\[
+	\C(x,y) = \cov(Z(x), Z(y)).
+\]
+If the covariance structure depends only on the distance of the points
+\[
+	\C(x,y) = \C(\|x-y\|),
+\]
+it is called isotropic. Isotropy is already a common assumption in geostastics
+\parencite[e.g.][Chapter 2]{mullerCollectingSpatialData2007} because it greatly
+reduces the amount of data needed for estimation, but for high-dimensional
+random fields, the number of directions is likely higher than the number of
+points we can afford to sample, so some form of rotation invariance is vital to
+make this problem tractable.
+
+The typical generalization beyond isotropy allows linear transformations of the
+input space \parencite[e.g.][Section 5.1]{williamsGaussianProcessesMachine2006}
+or \parencite{sampsonNonparametricEstimationNonstationary1992}, i.e.
+\[
+	\C(x,y) = \C((x-y)^T M (x-y))
+\]
+where \(M\) is a symmetric matrix such that it can be represented by \(LL^T\)
+which implies
+\[
+	\C(x,y) = \C(\|L^T(x-y)\|)
+\]
+As \(M\) is a \(\dimension\times\dimension\) matrix, it is then typically
+assumed to fulfill
+\[
+	M = \diag(\sigma_1,\dots,\sigma_\dimension) + \Gamma\Gamma^T
+\]
+where \(\Gamma\) is merely a \(k\times\dimension\) matrix for \(k\ll\dimension\).
+But even then this still implies a number of parameters in the order of
+\(O(\dimension)\) we need to estimate. This is much too big in our case, so we
+are not going to bother. With appropriate sparsity assumptions this might
+somehow be salvageable, but this is beyond the scope of this work.
+
+The isotropy assumption implicitly assumes the random field is stationary,
+i.e. invariant to shifts. A generalization one can make (we will make)
+is, that only the increments are stationary (isotropic). More precisely, the
+random field \(Z\) is \emph{intrinsically stationary}, if the increments
+\[
+	Z_h(x) := Z(x+h) - Z(x)
+\]
+are stationary for every \(h\in\real^\dimension\). Therefore
+\[
+	\C_h(x-y) = \C_h(x,y) = \cov(Z_h(x), Z_h(y))
+\]
+and we define the centered variogram
+\[
+	2\gamma(h):= \C_h(0) = \cov(Z_h(x), Z_h(x))= \var(Z_h(x)).
+\]
+For centered random fields (\(\E[Z]=0\)), the centered variogram is identical
+to the uncentered variogram
+\[
+	\gamma(h) = \tfrac12\E[(Z(x+h)-Z(x))^2].
+\]
+Assuming \(Z\) was stationary to begin with, the binomial formula yields 
+\[
+	\C(x-y) = \C(0) - \gamma(x-y).
+\]
+In parametric models, estimation of the variogram is therefore often equivalent
+to estimating the covariance function.
