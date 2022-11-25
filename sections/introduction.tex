@@ -74,14 +74,18 @@ variogram is identical to the uncentered variogram
 \[
 	\gamma(h) = \tfrac12\E[(Z(x+h)-Z(x))^2].
 \]
-Assuming \(Z\) was stationary to begin with, application of the binomial formula
+To reintroduce rotation invariance, we are going to assume
+\[
+	\gamma(h)=\gamma(\|h\|).
+\]
+Assuming \(Z\) was isotropic to begin with, application of the binomial formula
 yields
 \[
-	\C(x-y) = \C(0) - \gamma(x-y).
+	\C(\|x-y\|) = \C(0) - \gamma(\|x-y\|).
 \]
 In parametric models, estimation of the variogram is therefore often equivalent
 to estimating the covariance function. Estimation of the variogram instead of
-the covariance function is therefore convenient for the following reasons
+the covariance function is therefore convenient for the following reasons:
 \begin{enumerate}
 	\item the approach generalizes to intrinsically stationary random fields
 	\item for random fields with constant mean \(\mu\), we do not have to
@@ -91,12 +95,17 @@ the covariance function is therefore convenient for the following reasons
 So we will only estimate variograms. The most naïve non-parametric approach
 is the empirical variogram
 \[
-	\hat{\gamma}(h) = \frac{1}{\# P_\epsilon(h)}\sum_{(i,j)\in P_\epsilon(h)} [Z(x_i)-Z(x_j)]^2
+	\hat{\gamma}(h)
+	= \frac{1}{\# P_\epsilon(h)}\sum_{(i,j)\in P_\epsilon(h)} [Z(x_i)-Z(x_j)]^2,
+	\qquad h\in\real,
 \]
-where
+where the pairs of points with \(\epsilon\)-approximate distance \(h\) are
+defined as
 \[
 	P_\epsilon(h)
 	= \bigl\{
 		(i,j)\in \{1,\dots,n\}^2 : \|x_i - x_j\| \in (h-\epsilon, h+\epsilon)
 	\bigr\}.
 \]
+To estimate the variogram at \(h\), we therefore need evaluations of the random
+field at points approximately \(h\) apart.
