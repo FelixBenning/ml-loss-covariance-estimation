@@ -1,0 +1,106 @@
+\section{Experiement Design}
+
+In order to estimate the covariance
+structure, we need evaluations \(\rf(x_1),\dots,\rf(x_n)\) of our random
+field \(\rf\). But where should we sample our Random Field? I.e. what should
+\(x_1,\dots, x_n\) be? A grid or otherwise regular lattice as is common in
+geostatistical experiment design \parencite[e.g.][Section 4.1]{mullerCollectingSpatialData2007} does not work, because even for a trivial
+grid with only two options in every direction results in \(n=2^\dimension\) points.
+Way too many points for high dimensions \(d\).
+
+\subsection{Random Evaluation Points}
+
+So instead, we are going to select the evaluation points randomly. Let the point
+\(X_i\) be a multivariate normal \(\normal(0,\frac{\sigma_i^2}\dimension
+\identity_{\dimension\times \dimension})\) vector describing the \(i\)-th point
+in the evaluation space \(\real^\dimension\). Notice how the strong law of large
+numbers causes our points \(X_i\) to all be of similar length in high dimension
+\[
+	\|X_i\|^2 = \sum_{k=1}^\dimension (X_i^{(k)})^2
+	= \frac{\sigma_i^2}{\dimension} \sum_{k=1}^\dimension (Y_i^{(k)})^2 
+	\overset{\text{SLLN}}\longrightarrow\sigma_i^2\underbrace{\E[(Y_i^{(1)})^2]}_{=1} \quad (\dimension\to \infty)
+\]
+for \(X_i^{(k)} = \frac{\sigma_i}{\sqrt{\dimension}}Y_i^{(k)}\), where \(Y_i^{(k)}\) is
+independently \(\normal(0,1)\) distributed. If we had not scaled our random
+variables by \(1/{\sqrt{\dimension}}\), their average length would increase
+with dimension, but their length would still become more similar to
+\(\sigma_i\sqrt{\dimension}\) relative to their total length. In other words:
+a fixed number of significant digits in floating point notation would still get
+closer and closer in higher dimension.
+
+The takeaway is, that independent identically distributed random vectors are
+all roughly of the same length in high dimension. And the distance between
+two independent points is just a random vector itself
+\[
+	X_i-X_j\sim\normal\left(
+		0,\frac{\sigma_i^2+\sigma_j^2}\dimension\identity_{\dimension\times\dimension}
+	\right),
+\]
+and therefore\footnote{
+	These observations are directly related to the fact, that in high dimension
+	random vectors are roughly orthogonal, as they fulfill the pythagorean
+	theorem in the limit
+	\[
+		2\langle X_i, X_j\rangle = \|X_i-X_j\|^2 - (\|X_i\|^2 + \|X_j\|^2) \to 0.
+	\]
+}
+\[
+	\|X_i- X_j\|^2 \to \sigma_i^2 + \sigma_j^2
+	\quad\overset{\text{cont. map}}\implies \quad
+	\|X_i-X_j\|\to\sqrt{\sigma_i^2+\sigma_j^2}.
+\]
+So it is crucial, that the \(X_i\) are not identically distributed. Otherwise
+all our points would have the same distance \(\sqrt{2}\sigma\) from each other. But
+in order to estimate an (isotropic) covariance function,
+we need measurements at \emph{varying} distances from each other. Otherwise we would
+just get a covariance estimate for one particular distance. It is also noteworthy
+that we only really used the expectation and variance of the entries of \(X_i\).
+The normal distribution is not crucial here.
+
+\subsection{Selecting the Variances \texorpdfstring{\((\sigma_1^2,\dots,\sigma_n^2)\)}{(σ₁²,...,σₙ²)}}
+
+As we have already established, that we do not want the distribution of
+variances \(\sigma_i^2\) to be a dirac measure, the question is: What is a
+useful distribution for \(\sigma_i^2\)? If we have
+\(\sigma_i^2\overset{\text{iid}}\sim\mu\), then the empirical measure
+\[
+	\mu_n = \frac1n\sum_{k=1}^n \delta_{\sigma_i^2}
+\]
+for dirac measures \(\delta_x\), approximate \(\mu\) for \(n\to\infty\). Picking
+a random pair \((\sigma_i,\sigma_j)\) is equivalent from sampling from the
+product measure \(\mu_n \times \mu_n\) which approximates \(\mu\times\mu\).
+The distribution of distances
+\[
+	\|X_i-X_j\| \approx \sqrt{\sigma_i^2 + \sigma_j^2}
+\]
+is therefore approximately the distribution of \(\sqrt{X+Y}\) where
+\(X,Y\overset{\text{iid}}\sim\mu\). If we had
+\(\sigma_i^2\overset{\text{iid}}{\sim}\Gamma(\tfrac12,\theta)\) for example,
+then we have
+\[
+	\sigma_i^2 + \sigma_j^2 \sim \Gamma(1,\theta) = \Exp(\theta),
+\]
+which in turn implies that the distances \(\sqrt{\sigma_i^2 + \sigma_j^2}\)
+are half-normal distributed.
+
+It appears to be common knowledge in the statistical community, ``that the
+behavior of [the variogram] \(\gamma(h)\) is most critical for \(|h|\) small;
+hence [the number of samples at distance \(h\)] \(n(h)\) should be large for
+\(|h|\) small'' \parencite{warrickOptimizationSamplingLocations1987}. A similar
+statement was made by Martin Schlather in personal communication. But there
+does not appear to be any theory, to substantiate this empirical knowledge.
+Nevertheless the half-normal distribution fulfills the requirement for many
+small distances, so we are happy it is so easy to obtain.
+
+\begin{algorithm}
+	\caption{Select \(n\) Sample Points}	
+	Sample \(\sigma_1,\dots,\sigma_n\) iid from \(\Gamma(1,\theta)\)\tcp{Take
+	note of the unfortunate fact, that we have the hyperparameter \(\theta\)
+	left-over here}
+	\For{\(i\) in \(1,\dots, n\)}{
+		Sample \(X_i\) independently from \(\normal(0, \frac{\sigma_i^2}\dimension
+		\identity_{\dimension\times\dimension})\)
+	}
+	\Return{\((X_1,\dots,X_n)\)}
+\end{algorithm}
+
