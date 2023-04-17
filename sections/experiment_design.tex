@@ -76,10 +76,10 @@ The distribution of distances
 \]
 is therefore approximately the distribution of \(\sqrt{X+Y}\) where
 \(X,Y\overset{\text{iid}}\sim\mu\). If we had
-\(\sigma_i^2\overset{\text{iid}}{\sim}\Gamma(\tfrac12,\theta)\) for example,
+\(\sigma_i^2\overset{\text{iid}}{\sim}\Gamma(\tfrac14,2\theta)\) for example,
 then we have
 \[
-	\sigma_i^2 + \sigma_j^2 \sim \Gamma(1,\theta) = \Exp(\theta),
+	\sigma_i^2 + \sigma_j^2 \sim \Gamma(\tfrac12,2\theta) = \theta\chi^2(1),
 \]
 which in turn implies that the distances \(\sqrt{\sigma_i^2 + \sigma_j^2}\)
 are half-normal distributed.
