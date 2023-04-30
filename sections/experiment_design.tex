@@ -5,27 +5,27 @@ To estimate the covariance structure, we need evaluations
 field \(\rf\). But where should we sample our Random Field? I.e. what should
 \(x_1,\dots, x_n\) be? A grid or otherwise regular lattice as is common in
 geostatistical experiment design \parencite[e.g.][Section 4.1]{mullerCollectingSpatialData2007} does not work, because even for a trivial
-grid with only two options in every direction results in \(n=2^\dimension\) points.
+grid with only two options in every direction results in \(n=2^\dims\) points.
 This is way too much for high dimensions \(d\) and offers little variety in
 the distance of points \(x_i\).
 
 \subsection{Random Evaluation Points}
 
 So instead, we are going to select the evaluation points randomly. Let the point
-\(X_i\) be a multivariate normal \(\normal(0,\frac{\sigma_i^2}\dimension
-\identity_{\dimension\times \dimension})\) vector describing the \(i\)-th point
-in the evaluation space \(\real^\dimension\). Notice how the strong law of large
+\(X_i\) be a multivariate normal \(\normal(0,\frac{\sigma_i^2}\dims
+\identity_{\dims\times \dims})\) vector describing the \(i\)-th point
+in the evaluation space \(\real^\dims\). Notice how the strong law of large
 numbers causes our points \(X_i\) to all be of similar length in high dimension
 \[
-	\|X_i\|^2 = \sum_{k=1}^\dimension (X_i^{(k)})^2
-	= \frac{\sigma_i^2}{\dimension} \sum_{k=1}^\dimension (Y_i^{(k)})^2 
-	\overset{\text{SLLN}}\longrightarrow\sigma_i^2\underbrace{\E[(Y_i^{(1)})^2]}_{=1} \quad (\dimension\to \infty)
+	\|X_i\|^2 = \sum_{k=1}^\dims (X_i^{(k)})^2
+	= \frac{\sigma_i^2}{\dims} \sum_{k=1}^\dims (Y_i^{(k)})^2 
+	\overset{\text{SLLN}}\longrightarrow\sigma_i^2\underbrace{\E[(Y_i^{(1)})^2]}_{=1} \quad (\dims\to \infty)
 \]
-for \(X_i^{(k)} = \frac{\sigma_i}{\sqrt{\dimension}}Y_i^{(k)}\), where \(Y_i^{(k)}\) is
+for \(X_i^{(k)} = \frac{\sigma_i}{\sqrt{\dims}}Y_i^{(k)}\), where \(Y_i^{(k)}\) is
 independently \(\normal(0,1)\) distributed. If we had not scaled our random
-variables by \(1/{\sqrt{\dimension}}\), their average length would increase
+variables by \(1/{\sqrt{\dims}}\), their average length would increase
 with dimension, but their length would still become more similar to
-\(\sigma_i\sqrt{\dimension}\) relative to their total length. In other words:
+\(\sigma_i\sqrt{\dims}\) relative to their total length. In other words:
 a fixed number of significant digits in floating point notation would still get
 closer and closer in higher dimension.
 
@@ -34,7 +34,7 @@ all roughly of the same length in high dimension. And the distance between
 two independent points is just a random vector itself
 \[
 	X_i-X_j\sim\normal\left(
-		0,\frac{\sigma_i^2+\sigma_j^2}\dimension\identity_{\dimension\times\dimension}
+		0,\frac{\sigma_i^2+\sigma_j^2}\dims\identity_{\dims\times\dims}
 	\right),
 \]
 and therefore\footnote{
@@ -99,8 +99,8 @@ small distances, so we are happy it is so easy to obtain.
 	note of the unfortunate fact, that we have the hyperparameter \(\theta\)
 	left-over here}
 	\For{\(i\) in \(1,\dots, n\)}{
-		Sample \(X_i\) independently from \(\normal(0, \frac{\sigma_i^2}\dimension
-		\identity_{\dimension\times\dimension})\)
+		Sample \(X_i\) independently from \(\normal(0, \frac{\sigma_i^2}\dims
+		\identity_{\dims\times\dims})\)
 	}
 	\Return{\((X_1,\dots,X_n)\)}
 \end{algorithm}

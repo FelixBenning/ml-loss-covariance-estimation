@@ -1,0 +1,151 @@
+\section{Isotropy from uniform priors}\label{sec: isotropy from uniform priors}
+
+We have already outlined in the main work, how the assumption
+\[
+	\Loss(\param) = R(\theta - \param)
+\]
+for the random parameter \(\theta\) inducing the random loss \(\Loss\) can be
+used to argue for a constant expectation, if \(\theta\) is uniformly distributed.
+\(\theta\) can be interpreted as the true parameter we are trying to find.
+As uniform distributions on \(\real^\dims\) do not work, we will have to argue
+a little bit more. First, consider this lemma
+
+\begin{lemma}
+	Assume \(R \in [-1,1]\), and \(\theta\) to be uniformly distributed on
+	\(A\), i.e. \(\varphi_\theta(x) = \frac{1}{|A|}\ind_A(x)\), then
+	\[
+		|\E[\Loss(\param + \delta)] - \E[\Loss(\param)]|
+		\le \frac{|(A-\delta) \Delta A|}{|A|}
+	\]
+	where \(A \Delta B = (A\setminus B) \cup (B\setminus A)\) is the symmetric
+	set difference.
+\end{lemma}
+
+\begin{proof}
+	First we apply substitution
+	\[
+		\E[\Loss(\param + \delta)]
+		= \int R(x -\delta - \param) \varphi_\theta(x) dx
+		\overset{y=x-\delta}= \int R(y - \param) \varphi_\theta(y + \delta) dy.
+	\]
+	Then we consider the difference
+	\[
+		|\E[\Loss(\param+ \delta)] - \E[\Loss(\param)]|
+		\le \int \underbrace{|R(y - \param)|}_{\le 1}
+		\underbrace{|\varphi_\theta(y + \delta) -\varphi_\theta(y)|}_{=\frac1{|A|}|\ind_A(y+\delta) - \ind_A(y)|} dy
+		\le \frac{|(A-\delta)\Delta A|}{|A|}.
+		\qedhere
+	\]
+\end{proof}
+
+If \(A=[-a, a]\) for example,
+\[
+	|(A+\delta)\Delta A| = | [-a+\delta, a+\delta] \Delta A| = |[-a, -a+\delta] \cup [a, a+\delta]| \le 2\delta
+\]
+which is going to be small in comparison to \(|A|=2a\) if \(\delta\) is
+a small (local) change compared to the space of possible parameters with
+side-length \(a\). And if we expand the space of possible parameters
+\(a\to\infty\), then in the limit the expectation of \(\Loss\) becomes constant.
+
+\subsection{Compact manifolds}
+
+To avoid taking the limit to a uniform distribution on \(\real^\dims\), we could
+also consider compact manifolds.
+
+\begin{example}[1-sphere]
+	One possibility is to consider intervals with
+	rollover (i.e. if you leave at one side, you enter on the other). Formally
+	we consider the quotient set of equivalence sets induced by the modulo operation
+	\[
+		[0,1] = \real/\sim \qquad \text{with } x\sim y \iff (x\mod 1) = (y\mod 1).
+	\]
+	This is topologically a loop (\(1\)-sphere). Addition then rolls over as expected (e.g. \(0.7
+	+ 0.5 \mod 1 = 0.2\)).  Then we can define \(A=[0,1]\) and get \(A-\delta = A\).
+	The symmetric difference is therefore empty and we get constant expectation.
+\end{example}
+
+What we have defined as addition could also be viewed as a rotation on the
+\(1\)-sphere. While generalizing this approach would allow a torus, it is not quite
+as trivial for \(n\)-spheres. Taking a step back to think about the operations
+of addition and rotation and what they represent turns out to be much more
+fruitful than trying to make this work. Addition represents a shift, and both
+rotation and shifts are \emph{isometries}. For this generalization we need to
+redefine the classical definition of strict stationarity
+(cf.~Definition~\ref{def: strict stationarity}), since that uses addition.
+\begin{definition}[Strict Isotropy]
+	A random function \(Z\) is called isometrically stationary, if it is invariant to
+	all isometries, i.e. for all isometries \(T\) we have
+	\[
+		(Z(x_1), \dots, Z(x_n))
+		\overset{d}= (Z(T(x_1)), \dots, Z(T(x_n)))
+	\]
+\end{definition}
+\begin{remark}
+Since shifts are isometries, strict isotropy implies strict stationarity.
+\end{remark}
+\begin{lemma}
+	Strict isotropy implies isotropy.
+\end{lemma}
+\begin{proof}
+	Isotropy is only defined on on normed vector spaces. So we have a norm. Now
+	Choose any vector \(v\) such that \(\|v\|=1\). Now we define
+	\[
+		\C(h):= \cov(Z(0), Z(hv))
+	\]
+	We now want to show
+	\[
+		\C(x,y) = \C(\|x,y\|) \quad \forall x,y\in \manifold
+	\]
+	For this take any \(x,y\in \manifold\), then using
+	a shift and then a rotation, we have
+	\begin{align*}
+		\C(x,y)
+		&= \cov(Z(x), Z(y))
+		= \cov(Z(0), Z(y-x))
+		= \cov(Z(0), Z(\|y-x\|v))\\
+		&= \C(\|x-y\|).
+		\qedhere
+	\end{align*}
+\end{proof}
+
+\begin{theorem}[Isotropy on compact manifolds]
+	Let \(\manifold\subseteq \real^\dims\) be a compact manifold and assume
+	\[
+		\Loss(\param) = R(d(\param, \theta))	
+	\]
+	for some distance metric \(d\) and true value \(\theta\) with uniform
+	prior on \(\manifold\). Then \(\Loss\) is strictly isotropic.
+\end{theorem}
+\begin{proof}
+	Let \(T\) be an arbitrary isometry and let \(f\in C_b\), then
+	\begin{align*}
+		\E[f(\Loss(T\param_1), \dots, \Loss(T\param_n))] 
+		&= \int_\manifold f(R[d(T\param_1, x)], \dots, R[d(T\param_n, x)]) \varphi_\theta(x) dx\\
+		\overset{\text{isom.}}&= \int_\manifold f(R[d(\param_1,T^{-1}x)], \dots, R[d( \param_n, T^{-1}x)]) \varphi_\theta(t) dx\\
+		\overset{Ty=x}&= \int_\manifold f(R[d(\param_1, y)],\dots, R[d(\param_n, y)]) \underbrace{\varphi_\theta(Ty)}_{=\varphi_\theta(y)} \underbrace{|\det(dT)|}_{=1} dy\\
+		&= \E[f(\Loss(\param_1), \dots, \Loss(\param_n))].
+	\end{align*}
+	The claim follows by the Portmanteau theorem.
+\end{proof}
+
+\subsubsection{Plausibility of spheres}
+
+If we consider high dimensional uniform distributions i.e.
+\(\varphi_\theta(x)=2^{-\dims}\ind_{[-1,1]^\dims}(x)\), then we have
+\[
+	\|\tfrac1{\sqrt{\dims}}\theta\|^2 = \frac1\dims \sum_{i=1}^\dims \theta_i^2 \to \E[\mathcal{U}(-1,1)^2]
+\]
+We can move the normalization into the distribution, if we sampled
+\(\theta_i\sim\uniform(-\tfrac1{\sqrt{\dims}},\tfrac1{\sqrt{\dims}})\) instead.
+Point is, that the parameter \(\theta\) is concentrated on a
+\(\dims\)-sphere. And if the true parameter \(\theta\) is on the sphere, it
+makes little sense to search for it elsewhere. So the only parameters \(\param\)
+we would consider, will lie on the sphere.
+
+Here it is noteworthy, that the gold standard for initialization
+\parencite{glorotUnderstandingDifficultyTraining2010} does exactly that, it 
+samples the components of the initial parameter from \(\uniform(-1/\sqrt{\dims},
+1/\sqrt{\dims})\) where \(\dims\) is the number of parameters in that
+particular layer (i.e. the parameters of every single layer are sampled
+uniformly from a sphere). Normalization could be viewed as a projection back
+onto the sphere.

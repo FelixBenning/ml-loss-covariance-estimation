@@ -16,8 +16,8 @@ In \fxnote{self-cite} random field informed gradient methods are discussed. For
 these methods to work, they need information about the covariance structure of
 \(\rf\). In this work we want to estimate this covariance structure.
 
-More generally, for a random field \(Z:\real^\dimension \to \real\) with high
-input dimension \(\dimension\), the covariance function is defined as
+More generally, for a random field \(Z:\real^\dims \to \real\) with high
+input dimension \(\dims\), the covariance function is defined as
 \[
 	\C(x,y) = \cov(Z(x), Z(y)).
 \]
@@ -43,14 +43,14 @@ which implies
 \[
 	\C(x,y) = \C(\|L^T(x-y)\|)
 \]
-As \(M\) is a \(\dimension\times\dimension\) matrix, it is then typically
+As \(M\) is a \(\dims\times\dims\) matrix, it is then typically
 assumed to fulfill
 \[
-	M = \diag(\sigma_1,\dots,\sigma_\dimension) + \Gamma\Gamma^T
+	M = \diag(\sigma_1,\dots,\sigma_\dims) + \Gamma\Gamma^T
 \]
-where \(\Gamma\) is merely a \(k\times\dimension\) matrix for \(k\ll\dimension\).
+where \(\Gamma\) is merely a \(k\times\dims\) matrix for \(k\ll\dims\).
 But even then this still implies a number of parameters in the order of
-\(O(\dimension)\) we need to estimate. This is much too big in our case, so we
+\(O(\dims)\) we need to estimate. This is much too big in our case, so we
 are not going to bother. With appropriate sparsity assumptions this might
 somehow be salvageable, but this is beyond the scope of this work.
 
@@ -61,7 +61,7 @@ random field \(Z\) is \emph{intrinsically stationary}, if the increments
 \[
 	Z_h(x) := Z(x+h) - Z(x)
 \]
-are stationary for every \(h\in\real^\dimension\). Therefore
+are stationary for every \(h\in\real^\dims\). Therefore
 \[
 	\C_h(x-y) = \C_h(x,y) = \cov(Z_h(x), Z_h(y))
 \]

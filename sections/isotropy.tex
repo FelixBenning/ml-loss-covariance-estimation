@@ -1,0 +1,25 @@
+\section{Isotropy from uniform priors}
+
+In the remainder, we sketch an argument for the plausibility of constant
+expectation. Assume that the loss measures distance to a random
+parameter \(\theta\), i.e.  \(\Loss(\param) = R(\theta - \param)\).
+Then assuming \(\theta\) is uniformly distributed (i.e. its density is constant,
+\(\varphi_\theta(y+\delta) = \varphi_\theta(y))\) results in 
+\[
+	\E[\Loss(\param + \delta)]
+	= \int R(x - \param - \delta) \varphi_{\theta}(x) dx
+	\overset{y=x-\delta}= \int R(y - \param)
+	\underbrace{\varphi_{\theta}(y + \delta)}_{=\varphi_\theta(y)} dy
+	= \E[\Loss(\param)].
+\]
+Unfortunately the uniform distribution on \(\real^\dims\) does not exist.
+But it is possible to obtain a bound on the rate of change of the expectation
+using uniform distributions on large sets (Appendix~\ref{subsec:
+stationarity and isotropy from uniform priors}).
+To get constant expectation though, we need a uniform distribution on the entire
+set. It is possible to achieve this, if we normalize our parameters \(\param\),
+as this places them on the sphere. And on compact manifolds the uniform
+distribution is viable. Normalization appears to be a much more common practice
+in machine learning than \(L^2\)-regularization, and the removal of one
+dimension (by fixing the length) has less impact in high dimension. This might
+therefore justify constant expectation.
