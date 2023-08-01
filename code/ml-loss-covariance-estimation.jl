@@ -85,7 +85,7 @@ md"## Sampling points"
 num_sample_points = 300
 
 # ╔═╡ 24c2a2d9-5591-4a4d-a2cd-d2b6f2cc570f
-shape = 0.5
+shape = 0.1
 
 # ╔═╡ 66609fb7-5fe9-4c79-a2cb-366719402863
 variances = rand(Distributions.Gamma(1/4, shape), num_sample_points)
@@ -93,23 +93,28 @@ variances = rand(Distributions.Gamma(1/4, shape), num_sample_points)
 # ╔═╡ d6069b06-cca3-45ba-9843-7f487e564acd
 plot(variances, seriestype=:hist)
 
+# ╔═╡ b7981da3-5f96-48f5-ba49-e24ad73ad0d1
+sample_size = 10
+
 # ╔═╡ 93e16306-2a04-4476-8e6b-9fb42cffb29f
 function sample_points(model_factory; model_origin=model_factory())
 	o_vec, restructure = Flux.destructure(model_origin)
 	radius = norm(o_vec)
 	print(radius) # radius of the shpere origin is on
-	return map(variances) do var
+	evalPoints = Array{EvalPoint,1}(undef, length(variances))
+	@progress for (idx, var) in enumerate(variances)
 		m_vec, _ = Flux.destructure(model_factory()) # pick a random direction
 		m_param = o_vec .+ sqrt(var) * m_vec # move in the direction of m_vec
 		m_param *= radius/norm(m_param) # put result back on the sphere
 
 		model = restructure(m_param)
-		indices = rand(1:60000, 10)
+		indices = rand(1:60000, sample_size)
 		loss = Flux.Losses.mse(
 			model(x_train[:,:, indices]), y_train_oh[:,indices]
 		)
-		return EvalPoint(model, loss)
+		evalPoints[idx] =  EvalPoint(model, loss)
 	end
+	return evalPoints
 end
 
 # ╔═╡ a87ac95b-c3fd-4f4f-a23a-6f8379505add
@@ -278,15 +283,6 @@ end
 # ╔═╡ 2b32c413-7ddc-4afc-abef-4da2c94ec084
 md"### Minimize negative log-likelihood over lengthscale, variance and mean"
 
-# ╔═╡ 8d3dbd99-0996-4bc0-bbcd-a68be8596016
-# res = optimize(negLogLikelihood, [-Inf, 0., 0.], [Inf, 200, 30], [0., 1.,1.])
-
-# ╔═╡ 2de2b69f-6b37-4f84-a960-b087a1388a19
-#  Optim.minimizer(res)
-
-# ╔═╡ 757d87f0-0a6c-451e-a96d-eebf31f5672e
-extract_upper_tri(A) = A[LinearAlgebra.triu!(trues(size(A)), 1 )]
-
 # ╔═╡ ecbfe439-cedc-4cdf-8f1f-fd57591fbbb4
 npoints = 100
 
@@ -300,9 +296,6 @@ sq_loss_distances = pairwiseDistances(
 	d->LinearAlgebra.dot(d,d)
 )
 
-# ╔═╡ 7e4c025e-7d36-4174-a4d1-c94f6b28ecf4
-extract_upper_tri(sq_loss_distances)
-
 # ╔═╡ e07d3fd1-95fe-4006-aa17-0ada54f90919
 sq_distances = pairwiseDistances(
 	evals[1:npoints], 
@@ -310,14 +303,8 @@ sq_distances = pairwiseDistances(
 	d->LinearAlgebra.dot(d,d)
 )
 
-# ╔═╡ f04be34d-a3d5-4cb8-ba56-20ce1aeba28a
-plot(extract_upper_tri(sq_distances), seriestype=:hist)
-
 # ╔═╡ cd026600-1ba5-47b8-bc4f-0c56919bcd14
 C(variance, lengthscale) = variance * exp.(-sq_distances./(2*lengthscale))
-
-# ╔═╡ cba7f25f-b835-41d9-9872-813262db1659
-extract_upper_tri(distances)
 
 # ╔═╡ 141f520f-2799-478e-9f32-bc8daf2c4c71
 function negLogLikelihood(params, z=map(e->e.loss, evals[1:npoints]))
@@ -329,16 +316,31 @@ end
 # ╔═╡ 282635be-d873-4321-be40-e52bbef6b15c
 negLogLikelihood([0,1,1])
 
+# ╔═╡ 8d3dbd99-0996-4bc0-bbcd-a68be8596016
+# res = optimize(negLogLikelihood, [-Inf, 0., 0.], [Inf, 200, 30], [0., 1.,1.])
+
+# ╔═╡ 2de2b69f-6b37-4f84-a960-b087a1388a19
+#  Optim.minimizer(res)
+
 # ╔═╡ 8fb6f12c-9ce8-476d-9feb-3d5d709f415b
 optimize(x->negLogLikelihood([0.1, 0.1 ,x]), 0., 30.)
+
+# ╔═╡ 757d87f0-0a6c-451e-a96d-eebf31f5672e
+extract_upper_tri(A) = A[LinearAlgebra.triu!(trues(size(A)), 1 )]
+
+# ╔═╡ f04be34d-a3d5-4cb8-ba56-20ce1aeba28a
+plot(extract_upper_tri(sq_distances), seriestype=:hist, label="Distances in between")
+
+# ╔═╡ cff3491a-b054-4d7f-8400-9cc670d11841
+
 
 # ╔═╡ ef1060ca-4080-4d83-a032-965fa37283c4
 begin
 	local dist = extract_upper_tri(distances)
 	local sqloss = extract_upper_tri(sq_loss_distances)
 	local plt = plot(
-		dist, sqloss,
-		seriestype=:scatter, label="squared loss differences"
+		# dist, sqloss,
+		# seriestype=:scatter, label="squared loss differences"
 	)
 
 	dx, mvg_avg, mvg_std = moving_statistics(dist, sqloss)
@@ -2315,7 +2317,8 @@ version = "1.4.1+0"
 # ╠═24c2a2d9-5591-4a4d-a2cd-d2b6f2cc570f
 # ╠═66609fb7-5fe9-4c79-a2cb-366719402863
 # ╠═d6069b06-cca3-45ba-9843-7f487e564acd
-# ╟─93e16306-2a04-4476-8e6b-9fb42cffb29f
+# ╠═b7981da3-5f96-48f5-ba49-e24ad73ad0d1
+# ╠═93e16306-2a04-4476-8e6b-9fb42cffb29f
 # ╟─a87ac95b-c3fd-4f4f-a23a-6f8379505add
 # ╟─4c49f380-d8fd-474e-b628-e53b88fd79d5
 # ╟─84bb3d8d-fcc6-4c52-9c25-dad5e14acf25
@@ -2334,6 +2337,7 @@ version = "1.4.1+0"
 # ╠═62dfb376-2a0c-4757-8f6a-90210fe26753
 # ╠═d0c82c0d-bf3c-465b-a7a8-9cfb5762b3da
 # ╟─2b32c413-7ddc-4afc-abef-4da2c94ec084
+# ╠═ecbfe439-cedc-4cdf-8f1f-fd57591fbbb4
 # ╟─e07d3fd1-95fe-4006-aa17-0ada54f90919
 # ╠═cd026600-1ba5-47b8-bc4f-0c56919bcd14
 # ╠═141f520f-2799-478e-9f32-bc8daf2c4c71
@@ -2343,9 +2347,7 @@ version = "1.4.1+0"
 # ╠═2de2b69f-6b37-4f84-a960-b087a1388a19
 # ╠═8fb6f12c-9ce8-476d-9feb-3d5d709f415b
 # ╠═757d87f0-0a6c-451e-a96d-eebf31f5672e
-# ╠═cba7f25f-b835-41d9-9872-813262db1659
-# ╠═7e4c025e-7d36-4174-a4d1-c94f6b28ecf4
-# ╠═ecbfe439-cedc-4cdf-8f1f-fd57591fbbb4
-# ╟─ef1060ca-4080-4d83-a032-965fa37283c4
+# ╠═cff3491a-b054-4d7f-8400-9cc670d11841
+# ╠═ef1060ca-4080-4d83-a032-965fa37283c4
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
