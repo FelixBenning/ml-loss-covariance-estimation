@@ -191,6 +191,44 @@ plot(map(x->x.loss, evals), seriestype=:hist, label="Losses")
 # ╔═╡ 4c8c9b24-25c8-4b17-a648-a5edf533b7af
 @bind window_size Slider(0.5:0.5:10, show_value=true, default=2)
 
+# ╔═╡ 1de37476-c61c-419b-99c5-d838932271e1
+""" return 
+`dx, moving_average, moving_std`, where dx are the points around which the moving average and standarddeviations are taken. Those points are the discontinuities, in-between the average and std are constant.
+
+Example Usage:
+```julia 
+dx, mv_avg, mv_std = moving_statistics(loc, val)
+plot(dx, mv_avg, ribbon=mv_std)
+```
+"""
+function moving_statistics(location, value, window_size=window_size)
+
+	
+	incr_ids = sort(1:length(location), by=idx->location[idx])
+	sorted_loc = [location[idx] for idx in incr_ids]
+	
+	function window_around(x)
+		idx_l = searchsortedfirst(sorted_loc, x-window_size)
+		idx_r = searchsortedlast(sorted_loc, x+window_size)
+		return [value[idx] for idx in incr_ids[idx_l:idx_r]]
+	end
+
+	# window value only changes on 
+	# entry at loc-window_size` and exit at `loc+window_size`)
+	# so the discontinuity points are given by
+	dx = sort!(vcat(sorted_loc .- window_size, sorted_loc .+ window_size))
+	dx = dx[
+		# restrict range to range of locations
+		searchsortedfirst(dx, sorted_loc[1]):searchsortedlast(dx, sorted_loc[end])
+	]
+	
+	return (
+		dx, 
+		(x->Statistics.mean(window_around(x))).(dx),
+		(x->Statistics.std(window_around(x))).(dx)
+	)
+end
+
 # ╔═╡ 21493e2f-f245-41a0-9e37-ecc2ad8f2233
 begin
 	local plt = plot(
@@ -203,24 +241,14 @@ begin
 		label="Evaluation point",
 		fontfamily="Computer Modern"
 	)
-	local incr_ids = sort(
-		1:length(distances_from_ref), by=idx->distances_from_ref[idx]
+	local dx, moving_average, moving_std = moving_statistics(
+		distances_from_ref, 
+		[x.loss for x in evals]
 	)
-	local sorted_distances = [distances_from_ref[idx] for idx in incr_ids]
-	function moving_sample(x; epsilon=window_size)
-		idx_l = searchsortedfirst(sorted_distances, x-epsilon)
-		idx_r = searchsortedlast(sorted_distances, x+epsilon)
-		return map(x->x.loss, [evals[idx] for idx in incr_ids[idx_l:idx_r]])
-	end
-	
-	local dx = 0:0.1:floor(sorted_distances[end-1])
-	local moving_average= (x->Statistics.mean(moving_sample(x))).(dx)
-	moving_std = (x->Statistics.std(moving_sample(x))).(dx)
-	valid_indices = skipmissing(moving_std) |> keys |> collect
 	plot!(
-		plt, dx[valid_indices], 
-		moving_average[valid_indices],
-		ribbon= moving_std[valid_indices],
+		plt, dx, 
+		moving_average,
+		ribbon= moving_std,
 		label = "Moving average and standard deviation (window size = $(window_size))"
 	)
 end
@@ -232,23 +260,29 @@ For the maximum likelihood we need to calculate all distances between points. No
 "
 
 # ╔═╡ 544b8c66-1e98-428a-b7d7-588760949170
-function pairwiseSquaredDistances(evalPts, valueMap)
+function pairwiseDistances(evalPts, valueMap, dist_fun=LinearAlgebra.norm)
 	n = length(evalPts)
-	sq_distances = Array{Float64, 2}(undef, n, n)
+	distances = Array{Float64, 2}(undef, n, n)
 	@withprogress name="Distances" begin
 	for (idx, e1) in enumerate(evalPts)
-		sq_distances[1:idx,idx] = map(evals[1:idx]) do e2
+		distances[1:idx,idx] = map(evals[1:idx]) do e2
 			diff = valueMap(e1) - valueMap(e2)
-			return LinearAlgebra.dot(diff, diff)
+			return dist_fun(diff)
 		end
 		@logprogress idx*(idx+1)/(n*(n+1))
 	end
 	end
-	LinearAlgebra.symmetric(sq_distances, :U)
+	LinearAlgebra.symmetric(distances, :U)
 end
 
 # ╔═╡ 2b32c413-7ddc-4afc-abef-4da2c94ec084
 md"### Minimize negative log-likelihood over lengthscale, variance and mean"
+
+# ╔═╡ 8d3dbd99-0996-4bc0-bbcd-a68be8596016
+# res = optimize(negLogLikelihood, [-Inf, 0., 0.], [Inf, 200, 30], [0., 1.,1.])
+
+# ╔═╡ 2de2b69f-6b37-4f84-a960-b087a1388a19
+#  Optim.minimizer(res)
 
 # ╔═╡ 757d87f0-0a6c-451e-a96d-eebf31f5672e
 extract_upper_tri(A) = A[LinearAlgebra.triu!(trues(size(A)), 1 )]
@@ -257,7 +291,24 @@ extract_upper_tri(A) = A[LinearAlgebra.triu!(trues(size(A)), 1 )]
 npoints = 100
 
 # ╔═╡ 62dfb376-2a0c-4757-8f6a-90210fe26753
-sq_distances = pairwiseSquaredDistances(evals[1:npoints], e-> Flux.destructure(e.model)[1])
+distances = pairwiseDistances(evals[1:npoints], e-> Flux.destructure(e.model)[1])
+
+# ╔═╡ d0c82c0d-bf3c-465b-a7a8-9cfb5762b3da
+sq_loss_distances = pairwiseDistances(
+	evals[1:npoints], 
+	e-> e.loss, 
+	d->LinearAlgebra.dot(d,d)
+)
+
+# ╔═╡ 7e4c025e-7d36-4174-a4d1-c94f6b28ecf4
+extract_upper_tri(sq_loss_distances)
+
+# ╔═╡ e07d3fd1-95fe-4006-aa17-0ada54f90919
+sq_distances = pairwiseDistances(
+	evals[1:npoints], 
+	e-> Flux.destructure(e.model)[1],
+	d->LinearAlgebra.dot(d,d)
+)
 
 # ╔═╡ f04be34d-a3d5-4cb8-ba56-20ce1aeba28a
 plot(extract_upper_tri(sq_distances), seriestype=:hist)
@@ -266,13 +317,7 @@ plot(extract_upper_tri(sq_distances), seriestype=:hist)
 C(variance, lengthscale) = variance * exp.(-sq_distances./(2*lengthscale))
 
 # ╔═╡ cba7f25f-b835-41d9-9872-813262db1659
-extract_upper_tri(sq_distances)
-
-# ╔═╡ d0c82c0d-bf3c-465b-a7a8-9cfb5762b3da
-sq_loss_distances = pairwiseSquaredDistances(evals[1:npoints], e-> e.loss)
-
-# ╔═╡ 7e4c025e-7d36-4174-a4d1-c94f6b28ecf4
-extract_upper_tri(sq_loss_distances)
+extract_upper_tri(distances)
 
 # ╔═╡ 141f520f-2799-478e-9f32-bc8daf2c4c71
 function negLogLikelihood(params, z=map(e->e.loss, evals[1:npoints]))
@@ -284,21 +329,21 @@ end
 # ╔═╡ 282635be-d873-4321-be40-e52bbef6b15c
 negLogLikelihood([0,1,1])
 
-# ╔═╡ 8d3dbd99-0996-4bc0-bbcd-a68be8596016
-res = optimize(negLogLikelihood, [-Inf, 0., 0.], [Inf, 200, 30], [0., 1.,1.])
-
-# ╔═╡ 2de2b69f-6b37-4f84-a960-b087a1388a19
-Optim.minimizer(res)
-
 # ╔═╡ 8fb6f12c-9ce8-476d-9feb-3d5d709f415b
 optimize(x->negLogLikelihood([0.1, 0.1 ,x]), 0., 30.)
 
 # ╔═╡ ef1060ca-4080-4d83-a032-965fa37283c4
-plot(
-	extract_upper_tri(sq_distances),
-	extract_upper_tri(sq_loss_distances),
-	seriestype=:scatter
-)
+begin
+	local dist = extract_upper_tri(distances)
+	local sqloss = extract_upper_tri(sq_loss_distances)
+	local plt = plot(
+		dist, sqloss,
+		seriestype=:scatter, label="squared loss differences"
+	)
+
+	dx, mvg_avg, mvg_std = moving_statistics(dist, sqloss)
+	plot!(plt, dx, mvg_avg, ribbon=mvg_std, label="empirical variogram")
+end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -2281,13 +2326,15 @@ version = "1.4.1+0"
 # ╟─f04be34d-a3d5-4cb8-ba56-20ce1aeba28a
 # ╟─e7c103e9-b81d-45a5-a16f-8116e0a85cc1
 # ╠═4c8c9b24-25c8-4b17-a648-a5edf533b7af
+# ╟─1de37476-c61c-419b-99c5-d838932271e1
 # ╟─21493e2f-f245-41a0-9e37-ecc2ad8f2233
 # ╟─d294332e-b9f3-4eae-a042-ef632225bbec
 # ╠═a9a67f7e-cb50-4a42-b9b7-dfc647131d87
-# ╠═544b8c66-1e98-428a-b7d7-588760949170
+# ╟─544b8c66-1e98-428a-b7d7-588760949170
 # ╠═62dfb376-2a0c-4757-8f6a-90210fe26753
 # ╠═d0c82c0d-bf3c-465b-a7a8-9cfb5762b3da
 # ╟─2b32c413-7ddc-4afc-abef-4da2c94ec084
+# ╟─e07d3fd1-95fe-4006-aa17-0ada54f90919
 # ╠═cd026600-1ba5-47b8-bc4f-0c56919bcd14
 # ╠═141f520f-2799-478e-9f32-bc8daf2c4c71
 # ╠═282635be-d873-4321-be40-e52bbef6b15c
@@ -2299,6 +2346,6 @@ version = "1.4.1+0"
 # ╠═cba7f25f-b835-41d9-9872-813262db1659
 # ╠═7e4c025e-7d36-4174-a4d1-c94f6b28ecf4
 # ╠═ecbfe439-cedc-4cdf-8f1f-fd57591fbbb4
-# ╠═ef1060ca-4080-4d83-a032-965fa37283c4
+# ╟─ef1060ca-4080-4d83-a032-965fa37283c4
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
