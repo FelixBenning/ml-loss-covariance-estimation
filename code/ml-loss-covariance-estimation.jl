@@ -87,21 +87,23 @@ function toy_model()
 	)
 end
 
-# ╔═╡ df10a230-f35a-48d1-b08a-fac143b29ca4
-function empiricalMSELoss(batch_size=10, grads=false)
+# ╔═╡ bf0e20ca-a958-4e52-9e42-c3d70edcc270
+function empiricalMSELossWithGrad(batch_size=10)
 	return model -> begin
 		indices = rand(1:60000, batch_size)
-		if grads
-			return Flux.withgradient(Flux.params(model)) do
-				Flux.Losses.mse(model(x_train[:,:,indices]), y_train_oh[:,indices])
-			end
+		return Flux.withgradient(Flux.params(model)) do
+			Flux.Losses.mse(model(x_train[:,:,indices]), y_train_oh[:,indices])
 		end
-		return Flux.Losses.mse(model(x_train[:,:,indices]), y_train_oh[:,indices])
 	end
 end
 
-# ╔═╡ 4eafb716-11c8-4068-9842-d343c06fcb97
-empiricalMSELoss()
+# ╔═╡ df10a230-f35a-48d1-b08a-fac143b29ca4
+function empiricalMSELoss(batch_size=10)
+	return model -> begin
+		indices = rand(1:60000, batch_size)
+		return Flux.Losses.mse(model(x_train[:,:,indices]), y_train_oh[:,indices])
+	end
+end
 
 # ╔═╡ 3ad0dbba-8157-4564-a68a-47d49fba43f6
 struct EvalPoint
@@ -125,7 +127,7 @@ function mean_and_variance(model_factory, samples, loss=empiricalMSELoss)
 	losses = Array{Float64,2}(undef, (samples, length(batchSizes)))
 	grad_norm = Array{Float64,2}(undef, (samples, length(batchSizes)))
 	for (b_idx, batchSize) in enumerate(batchSizes)
-		l_fun = loss(batchSize,false)
+		l_fun = loss(batchSize)
 		for idx in 1:samples
 			losses[idx, b_idx] = l_fun(model_factory())
 			#  grad_norm[idx, b_idx] = LinearAlgebra.norm(grad)
@@ -165,10 +167,10 @@ function mean_and_variance(model_factory, samples, loss=empiricalMSELoss)
 end
 
 # ╔═╡ 83d373da-561f-41b9-b5ee-2f585c6b52a9
-preestimatedParams = mean_and_variance(mnistSimpleCNN7, 300)
+preestimatedParams = mean_and_variance(mnistSimpleCNN7, 100)
 
 # ╔═╡ 99c35161-c079-47d0-90d1-7c1ff0805824
-val, grad = empiricalMSELoss(1000, true)(mnistSimpleCNN7())
+val, grad = empiricalMSELossWithGrad(1000)(mnistSimpleCNN7())
 
 # ╔═╡ 1cacb6e3-33f0-45c7-93e4-a55ad5bc4915
 LinearAlgebra.norm(grad)
@@ -530,7 +532,7 @@ Optim.minimizer(res2)
 # ╟─11dcf7ce-2c57-11ee-0f5b-014ecac26614
 # ╠═3a14cb3a-7330-41e2-bd52-4f1fd0808a01
 # ╟─c1697f04-5898-426b-a7ed-9f67734ceb27
-# ╠═4eafb716-11c8-4068-9842-d343c06fcb97
+# ╠═bf0e20ca-a958-4e52-9e42-c3d70edcc270
 # ╠═df10a230-f35a-48d1-b08a-fac143b29ca4
 # ╠═3ad0dbba-8157-4564-a68a-47d49fba43f6
 # ╟─da8513dc-ccf7-422b-92f0-6e90dc7e124d
