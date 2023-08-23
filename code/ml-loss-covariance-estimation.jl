@@ -57,6 +57,9 @@ begin
 	size(x_train), size(y_train), size(y_train_oh)
 end
 
+# ╔═╡ 675f050e-e3aa-4007-801d-e29d537333f7
+Flux.trainmode!(Flux.BatchNorm(1))(reshape([1.,2.,3.], (3,1,1)))
+
 # ╔═╡ 11dcf7ce-2c57-11ee-0f5b-014ecac26614
 ## from https://github.com/ansh941/MnistSimpleCNN/blob/master/code/models/modelM7.py
 function mnistSimpleCNN7()
@@ -122,22 +125,23 @@ The Variance of the empirical loss is given by
 
 empLossVar = theoLossVar + sampleVar/batchSize
 """
-function mean_and_variance(model_factory, samples, loss=empiricalMSELoss)
+function mean_and_variance(model_factory, samples, loss=empiricalMSELossWithGrad)
 	batchSizes = [(1:10)...,100]
 	losses = Array{Float64,2}(undef, (samples, length(batchSizes)))
-	grad_norm = Array{Float64,2}(undef, (samples, length(batchSizes)))
+	grad_sqnorm = Array{Float64,2}(undef, (samples, length(batchSizes)))
 	for (b_idx, batchSize) in enumerate(batchSizes)
 		l_fun = loss(batchSize)
 		for idx in 1:samples
-			losses[idx, b_idx] = l_fun(model_factory())
-			#  grad_norm[idx, b_idx] = LinearAlgebra.norm(grad)
+			losses[idx, b_idx], grad = l_fun(Flux.testmode!(model_factory()))
+			grad_sqnorm[idx, b_idx] = LinearAlgebra.norm(grad)^2
 		end
 	end
 	estimatedMean = Statistics.mean(vec(losses))
 	vars = map(llist -> Statistics.varm(llist, estimatedMean), eachcol(losses))
 	linreg = linregress(batchSizes.^(-1), vars)
 
-	grad_norm_means = map(Statistics.mean, eachcol(grad_norm))
+	grad_sqnorm_means = map(Statistics.mean, eachcol(grad_sqnorm))
+	linreg_norms = linregress(batchSizes.^(-1), grad_sqnorm_means)
 
 	# sanity check plot to check linear regression is sensible
 	plt = plot(
@@ -151,35 +155,48 @@ function mean_and_variance(model_factory, samples, loss=empiricalMSELoss)
 	# ----------
 
 
-	plt_norms = plot(
-		batchSizes.^(-1), grad_norm_means,
+	plot_norms = plot(
+		batchSizes.^(-1), grad_sqnorm_means,
 		seriestype=:scatter,
-		label="Estimated Variance of Empirical Loss of varying batch sizes",
+		label="|∇ℓ|^2 for varying batch sizes",
 		xlabel="1/batchSize",
-		title="empirLossVar = theoLossVar + sampleVar/batchSize"
+		title="|∇ℓ|^2 = |∇L|^2 + |ϵ|^2/batchSize"
+	)
+	plot!(
+		plot_norms, [0,1], [linreg_norms([0]), linreg_norms([1])], 
+		label="Linear Regression"
 	)
 	return (
 		mean=estimatedMean, 
 		theoLossVar=LinearRegression.bias(linreg),
 		sampleVar=LinearRegression.slope(linreg)[1],
-		plot=plt # sanity check plot
+		plot=plt, # sanity check plot
+		theoGradNorm=LinearRegression.bias(linreg_norms),
+		sampleVarNorm=LinearRegression.slope(linreg)[1],
+		plot_norms = plot_norms
 	)
 end
 
 # ╔═╡ 83d373da-561f-41b9-b5ee-2f585c6b52a9
 preestimatedParams = mean_and_variance(mnistSimpleCNN7, 100)
 
+# ╔═╡ e2f7ae1f-e1f9-4cfa-ab4c-f8746accd1a3
+preestimatedParams.plot_norms
+
 # ╔═╡ 99c35161-c079-47d0-90d1-7c1ff0805824
-val, grad = empiricalMSELossWithGrad(1000)(mnistSimpleCNN7())
+grads = [empiricalMSELossWithGrad(1000)(mnistSimpleCNN7()).grad for _ in 1:100]
 
 # ╔═╡ 1cacb6e3-33f0-45c7-93e4-a55ad5bc4915
-LinearAlgebra.norm(grad)
+plot(LinearAlgebra.norm.(grads), seriestype=:hist)
 
 # ╔═╡ d1ce6753-adb8-4e15-8b00-991e7545da24
 N = sum(length, Flux.params(mnistSimpleCNN7()))
 
 # ╔═╡ e6f8b7a7-259c-45e9-8897-3be29af969c0
 σ2 = preestimatedParams.theoLossVar * N
+
+# ╔═╡ a631fbba-667f-4d6d-91da-c49942b7a2c5
+lscaleEstimate = sqrt(σ2)/preestimatedParams.theoGradNorm
 
 # ╔═╡ 18ba55bf-73fe-4945-9e35-c025e2af5f73
 L"""
@@ -529,8 +546,9 @@ Optim.minimizer(res2)
 # ╟─f8bb97c3-a6be-400f-8d02-548843b44aa7
 # ╟─9eb1ddaa-9028-444e-8f35-218ba57d1e99
 # ╠═677320e3-d796-404b-9d6b-f2e77ee947e2
-# ╟─11dcf7ce-2c57-11ee-0f5b-014ecac26614
-# ╠═3a14cb3a-7330-41e2-bd52-4f1fd0808a01
+# ╠═675f050e-e3aa-4007-801d-e29d537333f7
+# ╠═11dcf7ce-2c57-11ee-0f5b-014ecac26614
+# ╟─3a14cb3a-7330-41e2-bd52-4f1fd0808a01
 # ╟─c1697f04-5898-426b-a7ed-9f67734ceb27
 # ╠═bf0e20ca-a958-4e52-9e42-c3d70edcc270
 # ╠═df10a230-f35a-48d1-b08a-fac143b29ca4
@@ -538,10 +556,12 @@ Optim.minimizer(res2)
 # ╟─da8513dc-ccf7-422b-92f0-6e90dc7e124d
 # ╠═6f4903d1-c003-4faf-b682-b582cd45f6eb
 # ╠═83d373da-561f-41b9-b5ee-2f585c6b52a9
+# ╠═e2f7ae1f-e1f9-4cfa-ab4c-f8746accd1a3
 # ╠═99c35161-c079-47d0-90d1-7c1ff0805824
 # ╠═1cacb6e3-33f0-45c7-93e4-a55ad5bc4915
 # ╠═d1ce6753-adb8-4e15-8b00-991e7545da24
 # ╠═e6f8b7a7-259c-45e9-8897-3be29af969c0
+# ╠═a631fbba-667f-4d6d-91da-c49942b7a2c5
 # ╟─18ba55bf-73fe-4945-9e35-c025e2af5f73
 # ╟─467ac6fe-a963-4a4f-90bc-966636c9997e
 # ╟─d8dc580f-d83b-490b-92ef-d2a3505356e8
