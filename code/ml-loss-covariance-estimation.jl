@@ -180,6 +180,9 @@ end
 # ╔═╡ 83d373da-561f-41b9-b5ee-2f585c6b52a9
 preestimatedParams = mean_and_variance(mnistSimpleCNN7, 100)
 
+# ╔═╡ b60c39c7-e1ae-47a9-a7d6-c07d7f5daa02
+preestimatedParams.plot
+
 # ╔═╡ e2f7ae1f-e1f9-4cfa-ab4c-f8746accd1a3
 preestimatedParams.plot_norms
 
@@ -187,7 +190,10 @@ preestimatedParams.plot_norms
 grads = [empiricalMSELossWithGrad(1000)(mnistSimpleCNN7()).grad for _ in 1:100]
 
 # ╔═╡ 1cacb6e3-33f0-45c7-93e4-a55ad5bc4915
-plot(LinearAlgebra.norm.(grads), seriestype=:hist)
+plot(
+	LinearAlgebra.norm.(grads), 
+	seriestype=:hist, label="gradients norms (miniBatchSize = 1000)"
+)
 
 # ╔═╡ d1ce6753-adb8-4e15-8b00-991e7545da24
 N = sum(length, Flux.params(mnistSimpleCNN7()))
@@ -196,7 +202,7 @@ N = sum(length, Flux.params(mnistSimpleCNN7()))
 σ2 = preestimatedParams.theoLossVar * N
 
 # ╔═╡ a631fbba-667f-4d6d-91da-c49942b7a2c5
-lscaleEstimate = sqrt(σ2)/preestimatedParams.theoGradNorm
+lscaleEstimate = sqrt(σ2)/3.3
 
 # ╔═╡ 18ba55bf-73fe-4945-9e35-c025e2af5f73
 L"""
@@ -325,11 +331,11 @@ reference_pt= mnistSimpleCNN7()
 batchSize = 1000
 
 # ╔═╡ 84bb3d8d-fcc6-4c52-9c25-dad5e14acf25
-# evals = sample_points(
-# 	mnistSimpleCNN7, 
-# 	empiricalMSELoss(batchSize), 
-# 	model_origin=reference_pt
-# )
+evals = sample_points(
+	mnistSimpleCNN7, 
+	empiricalMSELoss(batchSize), 
+	model_origin=reference_pt
+)
 
 # ╔═╡ ef3defdc-f716-4f10-b249-e2cc7c1cdb08
 distances_from_ref = map(
@@ -465,6 +471,27 @@ function SECovariance(var, scale, noise)
 	d -> var * exp(-d^2/(2*scale)) + ((d == 0) ? noise : 0)
 end
 
+# ╔═╡ ef1060ca-4080-4d83-a032-965fa37283c4
+begin
+	local dist = extract_upper_tri(distances)
+	local sqloss = extract_upper_tri(sq_loss_distances)
+	local plt = plot(
+		dist, sqloss,
+		seriestype=:scatter, label="squared loss differences",
+		ylim=(0, 3e-6)
+	)
+
+	dx, mvg_avg, mvg_std = moving_statistics(dist, sqloss)
+	plot!(plt, dx, mvg_avg, ribbon=mvg_std, label="empirical variogram")
+	C = SECovariance(
+		preestimatedParams.theoLossVar, 
+		lscaleEstimate^2, 
+		preestimatedParams.sampleVar/batchSize
+	)
+	plot!(plt, dx, (x-> C(0)-C(x)).(dx), label="variogram resulting from param estimates")
+	plt
+end
+
 # ╔═╡ 9189f132-4135-4adb-b161-b26a9b629cae
 function negLogLikelihood(params, z=map(e->e.loss, evals[1:npoints]))
 	mean = params[1]
@@ -490,6 +517,14 @@ function negLogLikelihood(params, z=map(e->e.loss, evals[1:npoints]))
 	return logDet + LinearAlgebra.dot(zc, Σ\zc)/var
 end
 
+# ╔═╡ d6d62078-31d4-498a-bc9e-e909f9499f9d
+prelimParams = 	[
+	preestimatedParams.mean, 
+	preestimatedParams.theoLossVar, 
+	lscaleEstimate^2, 
+	preestimatedParams.sampleVar/batchSize
+]
+
 # ╔═╡ 8fb6f12c-9ce8-476d-9feb-3d5d709f415b
 res = optimize(x->negLogLikelihood([
 	preestimatedParams.mean, 
@@ -497,35 +532,6 @@ res = optimize(x->negLogLikelihood([
 	x, 
 	preestimatedParams.sampleVar/batchSize
 ]), 0., 1000)
-
-# ╔═╡ ef1060ca-4080-4d83-a032-965fa37283c4
-begin
-	local dist = extract_upper_tri(distances)
-	local sqloss = extract_upper_tri(sq_loss_distances)
-	local plt = plot(
-		dist, sqloss,
-		seriestype=:scatter, label="squared loss differences",
-		ylim=(0, 3e-6)
-	)
-
-	dx, mvg_avg, mvg_std = moving_statistics(dist, sqloss)
-	plot!(plt, dx, mvg_avg, ribbon=mvg_std, label="empirical variogram")
-	C = SECovariance(
-		preestimatedParams.theoLossVar, 
-		Optim.minimizer(res), 
-		preestimatedParams.sampleVar/batchSize
-	)
-	plot!(plt, dx, (x-> C(0)-C(x)).(dx), label="maximum likelihood over length scale")
-	plt
-end
-
-# ╔═╡ d6d62078-31d4-498a-bc9e-e909f9499f9d
-prelimParams = 	[
-	preestimatedParams.mean, 
-	preestimatedParams.theoLossVar, 
-	Optim.minimizer(res), 
-	preestimatedParams.sampleVar/batchSize
-]
 
 # ╔═╡ 3357f827-fba3-4878-8c7f-e899db978f19
 sqrt(Optim.minimizer(res))
@@ -554,8 +560,9 @@ Optim.minimizer(res2)
 # ╠═df10a230-f35a-48d1-b08a-fac143b29ca4
 # ╠═3ad0dbba-8157-4564-a68a-47d49fba43f6
 # ╟─da8513dc-ccf7-422b-92f0-6e90dc7e124d
-# ╠═6f4903d1-c003-4faf-b682-b582cd45f6eb
+# ╟─6f4903d1-c003-4faf-b682-b582cd45f6eb
 # ╠═83d373da-561f-41b9-b5ee-2f585c6b52a9
+# ╠═b60c39c7-e1ae-47a9-a7d6-c07d7f5daa02
 # ╠═e2f7ae1f-e1f9-4cfa-ab4c-f8746accd1a3
 # ╠═99c35161-c079-47d0-90d1-7c1ff0805824
 # ╠═1cacb6e3-33f0-45c7-93e4-a55ad5bc4915
@@ -577,7 +584,7 @@ Optim.minimizer(res2)
 # ╟─93e16306-2a04-4476-8e6b-9fb42cffb29f
 # ╟─a87ac95b-c3fd-4f4f-a23a-6f8379505add
 # ╠═d1ed8bed-6157-46cb-8616-78f30d11bfba
-# ╟─84bb3d8d-fcc6-4c52-9c25-dad5e14acf25
+# ╠═84bb3d8d-fcc6-4c52-9c25-dad5e14acf25
 # ╟─ef3defdc-f716-4f10-b249-e2cc7c1cdb08
 # ╟─966d8794-1165-4eb5-853c-2302a4001095
 # ╠═4c8c9b24-25c8-4b17-a648-a5edf533b7af
